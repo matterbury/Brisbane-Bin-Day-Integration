@@ -244,7 +244,7 @@ class BneWasteCollection(object):
     def update(self):
         collection = {}
         if self._property_number:
-            self._get_collection_details()
+            self._get_collection_details(collection)
         self._get_extra_bin(collection)
 
     def _get_collection_details(self, collection):
