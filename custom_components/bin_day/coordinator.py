@@ -1,5 +1,6 @@
 """Coordinator for the polling of the BCC API."""
 
+import asyncio
 import logging
 
 from datetime import timedelta
@@ -58,8 +59,12 @@ class BccApiDataUpdateCoordinator(DataUpdateCoordinator[BccApiData]):
         base_url = self._config.options.get(CONF_BASE_URL)
         days_table = self._config.options.get(CONF_DAYS_TABLE)
         weeks_table = self._config.options.get(CONF_WEEKS_TABLE)
-        self._get_days_data(base_url, days_table, property_number, api_data)
-        self._get_weeks_data(base_url, weeks_table, api_data)
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, self._get_days_data, base_url, days_table, property_number, api_data)
+        await loop.run_in_executor(
+            None, self._get_weeks_data, base_url, weeks_table, api_data)
 
         return api_data
 
