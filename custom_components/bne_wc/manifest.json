@@ -1,6 +1,6 @@
 {
     "domain": "bne_wc",
-    "name": "Brisbane Bin Day Integration",
+    "name": "Brisbane Bin Day integration",
     "documentation": "https://github.com/matterbury/Brisbane-Bin-Day-Sensor",
     "issue_tracker": "https://github.com/matterbury/Brisbane-Bin-Day-Sensor/issues",
     "dependencies": [],

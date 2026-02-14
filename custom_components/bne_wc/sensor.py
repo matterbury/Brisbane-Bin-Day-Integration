@@ -1,344 +1,185 @@
-import math
-import requests
-import logging
-import pandas as pd
-import voluptuous as vol
+"""Sets up the sensors for the Brisbane Bin Day service."""
 
-from dateutil.parser import parse
-from datetime import datetime, timedelta, date
-from time import strptime
-from urllib.parse import quote_plus
+from __future__ import annotations
 
-from homeassistant.components.binary_sensor import PLATFORM_SCHEMA
-from homeassistant.const import (CONF_NAME, STATE_ON, STATE_OFF)
-from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle
-import homeassistant.helpers.config_validation as cv
+#import logging
 
-_LOGGER = logging.getLogger(__name__)
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
-ATTR_PROPERTY_NUMBER = "Property Number"
-ATTR_SUBURB = "Suburb"
-ATTR_STREET = "Street"
-ATTR_HOUSE_NUMBER = "House Number"
-ATTR_COLLECTION_DAY = "Collection Day"
-ATTR_COLLECTION_ZONE = "Collection Zone"
-ATTR_NEXT_COLLECTION_DATE = "Next Collection Date"
-ATTR_DUE_IN = "Due In"
-ATTR_ALERT_HOURS = "Alert Hours"
-ATTR_EXTRA_BIN = "Extra Bin"
-ATTR_RECYCLE_WEEK = "Recycle Week"
-ATTR_GREEN_WEEK = "Green Week"
+from homeassistant.components.sensor import (
+    DOMAIN as SENSOR_DOMAIN,
+)
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorEntityDescription,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_utc_time_change
+from homeassistant.helpers.typing import StateType
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-CONF_BASE_URL = 'base_url'
-CONF_WASTE_DAYS_TABLE = 'days_table'
-CONF_WASTE_WEEKS_TABLE = 'weeks_table'
-CONF_PROPERTY_NUMBER = 'property_number'
-CONF_ICON = 'icon'
-CONF_ALERT_HOURS = 'alert_hours'
-CONF_GREEN_BIN = 'green_bin'
+from .const import DOMAIN
+from .data import BccApiData
+from .coordinator import BccApiDataUpdateCoordinator
 
-DEFAULT_ICON = 'mdi:trash-can'
-DEFAULT_ALERT_HOURS = 12
 
-# Throttle updates to every 5 minutes
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=300)
+@dataclass(frozen=True)
+class BinDaySensorEntityDescription(SensorEntityDescription):
+    """Describes a Solar Forecast Sensor."""
+    state: Callable[[BccApiData], Any] | None = None
 
-WEEK_DAYS = 7
-DAY_HOURS = 24
-HOUR_SECONDS = 3600
 
-def is_valid_date(d):
-    if d:
-        try:
-            parse(d)
-            return True
-        except:
-            return False
-    return False
+# pylint: disable=unexpected-keyword-arg
+SENSORS: tuple[BinDaySensorEntityDescription, ...] = (
+    BinDaySensorEntityDescription(
+        key="property_number",
+        translation_key="property_number",
+        state=lambda data: data.property_number,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="suburb",
+        translation_key="suburb",
+        state=lambda data: data.suburb,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="street",
+        translation_key="street",
+        state=lambda data: data.street_name,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="house_number",
+        translation_key="house_number",
+        state=lambda data: data.house_number,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="collection_day",
+        translation_key="collection_day",
+        state=lambda data: data.collection_day,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="collection_zone",
+        translation_key="collection_zone",
+        state=lambda data: data.collection_zone,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="alert_hours",
+        translation_key="alert_hours",
+        state=lambda data: data.alert_hours,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="green_bin",
+        translation_key="green_bin",
+        state=lambda data: data.green_bin,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="polling_interval_hours",
+        translation_key="polling_interval_hours",
+        state=lambda data: data.polling_interval_hours,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    BinDaySensorEntityDescription(
+        key="next_collection_date",
+        translation_key="next_collection_date",
+        state=lambda data: data.next_collection_date(),
+    ),
+    BinDaySensorEntityDescription(
+        key="due_in_hours",
+        translation_key="due_in_hours",
+        state=lambda data: data.due_in_hours(),
+    ),
+    BinDaySensorEntityDescription(
+        key="extra_bin_text",
+        translation_key="extra_bin_test",
+        state=lambda data: data.extra_bin_text(),
+    ),
+    BinDaySensorEntityDescription(
+        key="is_recycling_week",
+        translation_key="is_recycling_week",
+        state=lambda data: data.is_recycling_week(),
+    ),
+    BinDaySensorEntityDescription(
+        key="is_green_waste_week",
+        translation_key="is_green_waste_week",
+        state=lambda data: data.is_green_waste_week(),
+    ),
+)
 
-def due_in_hours(time_stamp: datetime):
-    """Get the remaining hours from now until a given datetime object."""
-    diff = time_stamp - datetime.now()
-    _LOGGER.debug(
-        "...Due In: Now: {0} Next Collection: {1} Seconds: {2}, Hours: {3}".
-        format(datetime.now(), time_stamp, diff.seconds, math.ceil(diff.seconds/HOUR_SECONDS)))
-    return math.ceil(diff.seconds/HOUR_SECONDS) + (diff.days*DAY_HOURS)
 
-def date_today():
-    return datetime.combine(date.today(), datetime.min.time())
+async def async_setup_entry(
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback
+) -> None:
+    """Defer sensor setup to the shared sensor module."""
+    coordinator: BccApiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_NAME): cv.string,
-    vol.Required(CONF_BASE_URL): cv.string,
-    vol.Required(CONF_WASTE_DAYS_TABLE): cv.string,
-    vol.Required(CONF_WASTE_WEEKS_TABLE): cv.string,
-    vol.Required(CONF_PROPERTY_NUMBER): cv.positive_int,
-    vol.Optional(CONF_ALERT_HOURS, default=DEFAULT_ALERT_HOURS): cv.positive_int,
-    vol.Optional(CONF_ICON, default=DEFAULT_ICON): cv.string,
-    vol.Optional(CONF_GREEN_BIN, default=False): cv.boolean
-})
+    async_add_entities(
+        BinDaySensorEntity(
+            entry_id=entry.entry_id,
+            coordinator=coordinator,
+            entity_description=entity_description,
+        )
+        for entity_description in SENSORS
+    )
 
-def setup_platform(hass, config, add_devices, discovery_info=None):
-    """Get the waste collection sensor."""
 
-    sensors = []
-    sensors.append(
-        BneWasteCollectionSensor(
-            BneWasteCollection(config.get(CONF_BASE_URL),
-                               config.get(CONF_WASTE_DAYS_TABLE),
-                               config.get(CONF_WASTE_WEEKS_TABLE),
-                               config.get(CONF_PROPERTY_NUMBER),
-                               config.get(CONF_GREEN_BIN)),
-            config.get(CONF_NAME),
-            config.get(CONF_ICON),
-            config.get(CONF_ALERT_HOURS)
-        ))
-    add_devices(sensors)
+class BinDaySensorEntity(CoordinatorEntity[BccApiDataUpdateCoordinator], SensorEntity):
+    """Defines a bin day sensor."""
 
-class BneWasteCollectionSensor(Entity):
-    """Implementation of a waste collection sensor."""
+    entity_description: BinDaySensorEntityDescription
+    _attr_has_entity_name = True
 
-    def __init__(self, data, name, icon, alert_hours):
-        """Initialize the sensor."""
-        self.data = data
-        self._name = name
-        self._icon = icon
-        self._alert_hours = alert_hours
-        self.update()
+    def __init__(
+        self,
+        *,
+        entry_id: str,
+        coordinator: BccApiDataUpdateCoordinator,
+        entity_description: BinDaySensorEntityDescription,
+    ) -> None:
+        """Initialize bin day sensor."""
+        super().__init__(coordinator=coordinator)
+        self.entity_description = entity_description
+        self.entity_id = f"{SENSOR_DOMAIN}.{entity_description.key}"
+        self._attr_unique_id = f"{entry_id}_{entity_description.key}"
 
-    def _get_collection_details(self):
-        collection_details = {}
-        for key, value in self.data.info.items():
-            collection_details[key] = value
-        return collection_details
+        self._attr_device_info = DeviceInfo(
+            entry_type=DeviceEntryType.SERVICE,
+            identifiers={(DOMAIN, entry_id)},
+            name="Brisbane bin day",
+        )
+
+    async def _update_callback(self, _now: datetime) -> None:
+        """Update the entity without fetching data from server."""
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        await super().async_added_to_hass()
+
+        # Update the state of the sensor every minute without
+        # fetching new data from the server.
+        async_track_utc_time_change(
+            self.hass,
+            self._update_callback,
+            second=0,
+        )
 
     @property
-    def name(self):
-        return self._name
-
-    @property
-    def state(self):
+    def native_value(self) -> datetime | StateType:
         """Return the state of the sensor."""
-        collection = self._get_collection_details()
-        _LOGGER.debug(
-            "...State Update: Due In {0} Alert Hours: {1}".
-            format(collection[ATTR_DUE_IN], self._alert_hours))
-        return STATE_ON if 0 < collection[ATTR_DUE_IN] <= self._alert_hours else STATE_OFF
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        collection_details = self._get_collection_details()
-        attrs = {
-            ATTR_PROPERTY_NUMBER:      collection_details[ATTR_PROPERTY_NUMBER],
-            ATTR_SUBURB:               collection_details[ATTR_SUBURB],
-            ATTR_STREET:               collection_details[ATTR_STREET],
-            ATTR_HOUSE_NUMBER:         collection_details[ATTR_HOUSE_NUMBER],
-            ATTR_COLLECTION_DAY:       collection_details[ATTR_COLLECTION_DAY],
-            ATTR_COLLECTION_ZONE:      collection_details[ATTR_COLLECTION_ZONE],
-            ATTR_NEXT_COLLECTION_DATE: collection_details[ATTR_NEXT_COLLECTION_DATE],
-            ATTR_DUE_IN:               collection_details[ATTR_DUE_IN],
-            ATTR_ALERT_HOURS:          self._alert_hours,
-            ATTR_EXTRA_BIN:            collection_details[ATTR_EXTRA_BIN],
-            ATTR_RECYCLE_WEEK:         collection_details[ATTR_RECYCLE_WEEK],
-            ATTR_GREEN_WEEK:           collection_details[ATTR_GREEN_WEEK]
-        }
-        return attrs
-
-    @property
-    def icon(self):
-        return self._icon
-
-    def update(self):
-        """Get the latest data from opendata.ch and update the states."""
-        self.data.update()
-        _LOGGER.debug("Sensor Update:")
-        _LOGGER.debug("...Name: {0}".format(self._name))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_PROPERTY_NUMBER,
-                self.extra_state_attributes[ATTR_PROPERTY_NUMBER]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_PROPERTY_NUMBER))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_SUBURB,
-                self.extra_state_attributes[ATTR_SUBURB]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_SUBURB))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_STREET,
-                self.extra_state_attributes[ATTR_STREET]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_STREET))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_HOUSE_NUMBER,
-                self.extra_state_attributes[ATTR_HOUSE_NUMBER]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_HOUSE_NUMBER))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_COLLECTION_DAY,
-                self.extra_state_attributes[ATTR_COLLECTION_DAY]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_COLLECTION_DAY))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_COLLECTION_ZONE,
-                self.extra_state_attributes[ATTR_COLLECTION_ZONE]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_COLLECTION_ZONE))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_NEXT_COLLECTION_DATE,
-                self.extra_state_attributes[ATTR_NEXT_COLLECTION_DATE]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_NEXT_COLLECTION_DATE))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_DUE_IN,
-                self.extra_state_attributes[ATTR_DUE_IN]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_DUE_IN))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_ALERT_HOURS,
-                self.extra_state_attributes[ATTR_ALERT_HOURS]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_ALERT_HOURS))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_EXTRA_BIN,
-                self.extra_state_attributes[ATTR_EXTRA_BIN]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_EXTRA_BIN))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_RECYCLE_WEEK,
-                self.extra_state_attributes[ATTR_RECYCLE_WEEK]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_RECYCLE_WEEK))
-        try:
-            _LOGGER.debug("...{0}: {1}".format(
-                ATTR_GREEN_WEEK,
-                self.extra_state_attributes[ATTR_GREEN_WEEK]))
-        except:
-            _LOGGER.debug("...{0} not defined".format(ATTR_GREEN_WEEK))
-
-class BneWasteCollection(object):
-    """The Class for handling the data retrieval."""
-
-    def __init__(self, base_url, days_table, weeks_table, property_number, green_bin):
-        """Initialize the info object."""
-        self._base_url = base_url
-        self._days_table = days_table
-        self._weeks_table = weeks_table
-        self._property_number = property_number
-        self._green_bin = green_bin
-        self.info = {}
-
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    def update(self):
-        collection = {}
-        if self._property_number:
-            self._get_collection_details(collection)
-        self._get_extra_bin(collection)
-
-    def _get_collection_details(self, collection):
-        _LOGGER.info("Updating Waste Collection data")
-        try:
-            collection[ATTR_PROPERTY_NUMBER] = self._property_number
-            full_url = self._base_url.format(**{
-                'dataset_id': self._days_table,
-                'query': quote_plus("property_id = {0}".format(int(self._property_number)))
-            })
-            _LOGGER.info("...Day query: {0}".format(full_url))
-            response = requests.get(full_url)
-            json=response.json()
-            if 'error_code' in json:
-                _LOGGER.error(
-                    "Error retrieving collection day dataset: {0}: {1}".
-                    format(json['error_code'], json['message']))
-            else:
-                _LOGGER.info("...Successfully retrieved collection day dataset")
-                dic=json['results']
-                df = pd.DataFrame(dic)
-                if len(df.index) > 0:
-                    collection[ATTR_SUBURB] = df['suburb'].iloc[0]
-                    collection[ATTR_STREET] = df['street_name'].iloc[0]
-                    collection[ATTR_HOUSE_NUMBER] = df['house_number'].iloc[0]
-                    collection[ATTR_COLLECTION_DAY] = df['collection_day'].iloc[0]
-                    collection[ATTR_COLLECTION_ZONE] = df['zone'].iloc[0]
-
-                    # If the DoW of collection day is after today's DoW then
-                    # the next collection is this week else it's next week.
-                    collection_day_no = strptime(collection[ATTR_COLLECTION_DAY],'%A').tm_wday
-                    current_day_no = datetime.today().weekday()
-                    days_offset = 0 if collection_day_no > current_day_no else WEEK_DAYS
-                    days_to_next_collection = days_offset + collection_day_no - current_day_no
-                    collection[ATTR_NEXT_COLLECTION_DATE] = (
-                        date_today() + timedelta(days=days_to_next_collection)).isoformat()
-                else:
-                    _LOGGER.error('Collection day dataset zero rows returned')
-
-        except requests.exceptions.RequestException as e:
-            _LOGGER.error("updating collection day got {}.".format(e))
-
-        return collection
-
-    def _get_extra_bin(self, collection):
-        # If the ZONE for the address matches the ZONE for the week,
-        #   it is yellow recycling bin week.
-        # If the ZONE for the address does not match the ZONE for the week,
-        #   it is green waste bin week.
-        collection_day_no = strptime(collection[ATTR_COLLECTION_DAY],'%A').tm_wday
-        week_start_date = (parse(collection[ATTR_NEXT_COLLECTION_DATE]) -
-                           timedelta(days=collection_day_no))
-        week_start_string = f'{week_start_date:%Y-%m-%d}'
-
-        try:
-            full_url = self._base_url.format(**{
-                'dataset_id': self._weeks_table,
-                'query': quote_plus(
-                    "week_starting = date'{0}' AND search(zone, '{1}')".
-                    format(str(week_start_string).replace("'", "\\'"),
-                           str(collection[ATTR_COLLECTION_ZONE]).replace("'", "\\'")))
-            })
-            _LOGGER.info("...Week query: {0}".format(full_url))
-
-            response = requests.get(full_url)
-            json=response.json()
-
-            if 'error_code' in json:
-                _LOGGER.error(
-                    "Error retrieving collection week dataset: {0}: {1}".
-                    format(json['error_code'], json['message']))
-            else:
-                _LOGGER.info("...Successfully retrieved collection week dataset")
-                dic=json['results']
-                df = pd.DataFrame(dic)
-
-                # If a row is returned then it's a recycling week else it's a
-                # green waste week.
-                if len(df.index) > 0:
-                    collection[ATTR_EXTRA_BIN] = 'Yellow/Recycling'
-                    collection[ATTR_RECYCLE_WEEK] = True
-                    collection[ATTR_GREEN_WEEK] = False
-                else:
-                    collection[ATTR_EXTRA_BIN] = 'Green/Garden'
-                    collection[ATTR_RECYCLE_WEEK] = False
-                    collection[ATTR_GREEN_WEEK] = True
-
-                if is_valid_date(collection[ATTR_NEXT_COLLECTION_DATE]):
-                    collection[ATTR_DUE_IN] = due_in_hours(
-                        parse(collection[ATTR_NEXT_COLLECTION_DATE]))
-                else:
-                    collection[ATTR_DUE_IN] = -1
-
-        except requests.exceptions.RequestException as e:
-            _LOGGER.error("updating collection week got {}.".format(e))
-
-        self.info = collection
+        return self.entity_description.state(self.coordinator.data)
