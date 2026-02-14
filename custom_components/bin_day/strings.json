@@ -13,7 +13,7 @@
           "recycling_icon": "The mdi: icon to use for the recycling week entity",
           "alert_hours": "Hours in advance of midnight on collection day to enable entities",
           "property_number": "The id number of the collection property",
-          "has_green_bin": "True if you have a green bin for collection, else False",
+          "has_green_bin": "True if you have a green bin for collection, else False"
         }
       }
     }
@@ -32,7 +32,7 @@
           "recycling_icon": "[%key:component::bin_day::config::step::user::data::recycling_icon%]",
           "alert_hours": "[%key:component::bin_day::config::step::user::data::alert_hours%]",
           "property_number": "[%key:component::bin_day::config::step::user::data::property_number%]",
-          "has_green_bin": "[%key:component::bin_day::config::step::user::data::has_green_bin%]",
+          "has_green_bin": "[%key:component::bin_day::config::step::user::data::has_green_bin%]"
         }
       }
     }
@@ -80,7 +80,7 @@
       },
       "is_green_waste_week": {
         "name": "Is Green Waste Week"
-      },
+      }
     }
   }
 }
