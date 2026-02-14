@@ -53,8 +53,9 @@ class BccApiDataUpdateCoordinator(DataUpdateCoordinator[BccApiData]):
         """Fetch the data from the BCC API and parse it and return it."""
         property_number = self._config.options.get(CONF_PROPERTY_NUMBER)
         alert_hours = self._config.options.get(CONF_ALERT_HOURS)
+        polling_interval_hours = self._config.options.get(CONF_POLLING_INTERVAL_HOURS)
         has_green_bin = self._config.options.get(CONF_HAS_GREEN_BIN)
-        api_data = BccApiData(property_number, alert_hours, has_green_bin)
+        api_data = BccApiData(property_number, alert_hours, polling_interval_hours, has_green_bin)
 
         base_url = self._config.options.get(CONF_BASE_URL)
         days_table = self._config.options.get(CONF_DAYS_TABLE)
@@ -90,7 +91,7 @@ class BccApiDataUpdateCoordinator(DataUpdateCoordinator[BccApiData]):
 
                 if len(df.index) > 0:
                     api_data.suburb = df['suburb'].iloc[0]
-                    api_data.street = df['street_name'].iloc[0]
+                    api_data.street_name = df['street_name'].iloc[0]
                     api_data.house_number = df['house_number'].iloc[0]
                     api_data.collection_day = df['collection_day'].iloc[0]
                     api_data.collection_zone = df['zone'].iloc[0]

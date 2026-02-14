@@ -16,19 +16,27 @@ class BccApiData:
     # Static, from config.
     property_number: int
     alert_hours: int
+    polling_interval_hours: int
     has_green_bin: bool
     # Dynamic, fetched from the BCC API.
     suburb: str
-    street: str
+    street_name: str
     house_number: str
     collection_day: str
     collection_zone: str
     recycling_week: bool
 
-    def __init__(self, property_number: int, alert_hours: int, has_green_bin: bool):
+    def __init__(
+            self,
+            property_number: int,
+            alert_hours: int,
+            polling_interval_hours: int,
+            has_green_bin: bool
+    ):
         """Suppress the auto-generated version that requires all data."""
         self.property_number = property_number
         self.alert_hours = alert_hours
+        self.polling_interval_hours = polling_interval_hours
         self.has_green_bin = has_green_bin
 
     def collection_week_day(self) -> int | None:
@@ -53,7 +61,7 @@ class BccApiData:
         if next_collection_date is None:
             return None
         diff = next_collection_date - datetime.now()
-        return math.ceil(diff.hours) + diff.days * 24
+        return math.ceil(diff.seconds / 3600) + diff.days * 24
 
     def extra_bin_text(self) -> str | None:
         """Compute the text describing the next extra bin (Green/Yellow)."""

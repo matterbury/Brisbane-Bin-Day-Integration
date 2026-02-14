@@ -51,8 +51,8 @@ SENSORS: tuple[BinDaySensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     BinDaySensorEntityDescription(
-        key="street",
-        translation_key="street",
+        key="street_name",
+        translation_key="street_name",
         state=lambda data: data.street_name,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -81,9 +81,9 @@ SENSORS: tuple[BinDaySensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     BinDaySensorEntityDescription(
-        key="green_bin",
-        translation_key="green_bin",
-        state=lambda data: data.green_bin,
+        key="has_green_bin",
+        translation_key="has_green_bin",
+        state=lambda data: data.has_green_bin,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     BinDaySensorEntityDescription(
