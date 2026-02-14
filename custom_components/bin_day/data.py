@@ -22,7 +22,7 @@ class BccApiData:
     street: str
     house_number: str
     collection_day: str
-    collection_zone: int
+    collection_zone: str
     recycling_week: bool
 
     def __init__(self, property_number: int, alert_hours: int, has_green_bin: bool):

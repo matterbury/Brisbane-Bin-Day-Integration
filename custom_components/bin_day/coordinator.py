@@ -93,7 +93,7 @@ class BccApiDataUpdateCoordinator(DataUpdateCoordinator[BccApiData]):
                     api_data.street = df['street_name'].iloc[0]
                     api_data.house_number = df['house_number'].iloc[0]
                     api_data.collection_day = df['collection_day'].iloc[0]
-                    api_data.collection_zone = int(df['zone'].iloc[0])
+                    api_data.collection_zone = df['zone'].iloc[0]
                 else:
                     _LOGGER.error('Collection day dataset zero rows returned')
 
