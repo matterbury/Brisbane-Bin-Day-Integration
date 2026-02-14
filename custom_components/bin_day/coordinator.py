@@ -5,7 +5,6 @@ import logging
 from datetime import timedelta
 from urllib.parse import quote_plus
 
-import async_timeout
 import pandas
 import requests
 
@@ -17,12 +16,14 @@ from .const import (
     DOMAIN,
     CONF_POLLING_INTERVAL_HOURS,
     CONF_BASE_URL,
-    CONF_WASTE_DAYS_TABLE,
-    CONF_WASTE_WEEKS_TABLE,
+    CONF_DAYS_TABLE,
+    CONF_WEEKS_TABLE,
     CONF_PROPERTY_NUMBER,
+    CONF_ALERT_HOURS,
+    CONF_HAS_GREEN_BIN,
 )
 
-from .collection_data import BccApiData
+from .data import BccApiData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,13 +51,13 @@ class BccApiDataUpdateCoordinator(DataUpdateCoordinator[BccApiData]):
     async def _async_update_data(self) -> BccApiData:
         """Fetch the data from the BCC API and parse it and return it."""
         property_number = self._config.options.get(CONF_PROPERTY_NUMBER)
-        due_in_hours = self._config.options.get(CONF_DUE_IN_HOURS)
-        green_bin = self._config.options.get(CONF_GREEN_BIN)
-        api_data = BccApiData(property_number, due_in_hours, green_bin)
+        alert_hours = self._config.options.get(CONF_ALERT_HOURS)
+        has_green_bin = self._config.options.get(CONF_HAS_GREEN_BIN)
+        api_data = BccApiData(property_number, alert_hours, has_green_bin)
 
         base_url = self._config.options.get(CONF_BASE_URL)
-        days_table = self._config.options.get(CONF_WASTE_DAYS_TABLE)
-        weeks_table = self._config.options.get(CONF_WASTE_WEEKS_TABLE)
+        days_table = self._config.options.get(CONF_DAYS_TABLE)
+        weeks_table = self._config.options.get(CONF_WEEKS_TABLE)
         self._get_days_data(base_url, days_table, property_number, api_data)
         self._get_weeks_data(base_url, weeks_table, api_data)
 

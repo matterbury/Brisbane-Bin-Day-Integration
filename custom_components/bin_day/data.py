@@ -11,10 +11,12 @@ from time import strptime
 @dataclass
 class BccApiData:
     """Object holding the data about waste collection received."""
+    # pylint: disable=too-many-instance-attributes
+
     # Static, from config.
     property_number: int
-    due_in_hours: int
-    green_bin: bool
+    alert_hours: int
+    has_green_bin: bool
     # Dynamic, fetched from the BCC API.
     suburb: str
     street: str
@@ -23,11 +25,11 @@ class BccApiData:
     collection_zone: int
     recycling_week: bool
 
-    def __init__(self, property_number: int, due_in_hours: int, green_bin: bool):
+    def __init__(self, property_number: int, alert_hours: int, has_green_bin: bool):
         """Suppress the auto-generated version that requires all data."""
         self.property_number = property_number
-        self.due_in_hours = due_in_hours
-        self.green_bin = green_bin
+        self.alert_hours = alert_hours
+        self.has_green_bin = has_green_bin
 
     def collection_week_day(self) -> int | None:
         """Compute the week day number of our collection day."""
@@ -56,7 +58,7 @@ class BccApiData:
     def extra_bin_text(self) -> str | None:
         """Compute the text describing the next extra bin (Green/Yellow)."""
         return ('Yellow/Recycling' if self.recycling_week else
-                'Green/Garden Waste' if self.green_bin else None)
+                'Green/Garden Waste' if self.has_green_bin else None)
 
     def is_recycling_week(self) -> bool:
         """Compute whether the next collection includes the recycling bin."""
