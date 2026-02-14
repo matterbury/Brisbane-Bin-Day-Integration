@@ -13,7 +13,6 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
-from homeassistant.helpers import config_validation as cv
 
 from .const import (
     DOMAIN,
@@ -77,43 +76,7 @@ class BinDayFlowHandler(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
-                        CONF_SENSOR_NAME,
-                        default=DEFAULT_SENSOR_NAME
-                    ): cv.string,
-                    vol.Required(CONF_PROPERTY_NUMBER): cv.positive_int,
-                    vol.Required(
-                        CONF_BASE_URL,
-                        default=DEFAULT_BASE_URL
-                    ): cv.string,
-                    vol.Required(
-                        CONF_DAYS_TABLE,
-                        default=DEFAULT_DAYS_TABLE
-                    ): cv.string,
-                    vol.Required(
-                        CONF_WEEKS_TABLE,
-                        default=DEFAULT_WEEKS_TABLE
-                    ): cv.string,
-                    vol.Required(
-                        CONF_POLLING_INTERVAL_HOURS,
-                        default=DEFAULT_POLLING_INTERVAL_HOURS
-                    ): vol.All(cv.positive_int, vol.Range(min=MINIMUM_POLLING_INTERVAL_HOURS)),
-                    vol.Optional(
-                        CONF_NORMAL_ICON,
-                        default=DEFAULT_ICON
-                    ): cv.string,
-                    vol.Optional(
-                        CONF_RECYCLING_ICON,
-                        default=DEFAULT_ICON
-                    ): cv.string,
-                    vol.Required(
-                        CONF_ALERT_HOURS,
-                        default=DEFAULT_ALERT_HOURS
-                    ): cv.positive_int,
-                    vol.Optional(
-                        CONF_HAS_GREEN_BIN,
-                        default=False
-                    ): cv.boolean,
+                    vol.Required(CONF_PROPERTY_NUMBER): int,
                 }
             ),
         )
@@ -132,45 +95,9 @@ class BinDayOptionFlowHandler(OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_SENSOR_NAME,
-                        default=self.config_entry.options[CONF_SENSOR_NAME]
-                    ): cv.string,
-                    vol.Required(
                         CONF_PROPERTY_NUMBER,
                         default=self.config_entry.options[CONF_PROPERTY_NUMBER]
-                    ): cv.positive_int,
-                    vol.Required(
-                        CONF_BASE_URL,
-                        default=self.config_entry.options[CONF_PROPERTY_NUMBER]
-                    ): cv.string,
-                    vol.Required(
-                        CONF_DAYS_TABLE,
-                        default=self.config_entry.options[CONF_DAYS_TABLE]
-                    ): cv.string,
-                    vol.Required(
-                        CONF_WEEKS_TABLE,
-                        default=self.config_entry.options[CONF_WEEKS_TABLE]
-                    ): cv.string,
-                    vol.Required(
-                        CONF_POLLING_INTERVAL_HOURS,
-                        default=self.config_entry.options[CONF_POLLING_INTERVAL_HOURS]
-                    ): vol.All(cv.positive_int, vol.Range(min=MINIMUM_POLLING_INTERVAL_HOURS)),
-                    vol.Optional(
-                        CONF_NORMAL_ICON,
-                        default=self.config_entry.options[CONF_NORMAL_ICON]
-                    ): cv.string,
-                    vol.Optional(
-                        CONF_RECYCLING_ICON,
-                        default=self.config_entry.options[CONF_RECYCLING_ICON]
-                    ): cv.string,
-                    vol.Required(
-                        CONF_ALERT_HOURS,
-                        default=self.config_entry.options[CONF_ALERT_HOURS]
-                    ): cv.positive_int,
-                    vol.Optional(
-                        CONF_HAS_GREEN_BIN,
-                        default=self.config_entry.options[CONF_HAS_GREEN_BIN]
-                    ): cv.boolean,
+                    ): int,
                 }
             ),
             errors={},
