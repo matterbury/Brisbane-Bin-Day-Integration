@@ -74,4 +74,4 @@ class BccApiData:
 
     def is_green_waste_week(self) -> bool:
         """Compute whether the next collection includes the green waste bin."""
-        return not self.recycling_week
+        return self.has_green_bin and not self.recycling_week
