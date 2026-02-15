@@ -186,6 +186,6 @@ class BinDaySensorEntity(CoordinatorEntity[BccApiDataUpdateCoordinator], SensorE
         )
 
     @property
-    def native_value(self) -> Any | StateType:
+    def native_value(self) -> StateType:
         """Return the value of the sensor."""
         return self.entity_description.value(self.coordinator.data)
