@@ -38,6 +38,12 @@ class BccApiData:
         self.alert_hours = alert_hours
         self.polling_interval_hours = polling_interval_hours
         self.has_green_bin = has_green_bin
+        self.suburb = None
+        self.street_name = None
+        self.house_number = None
+        self.collection_day = None
+        self.collection_zone = None
+        self.recycling_week = None
 
     def collection_week_day(self) -> int | None:
         """Compute the week day number of our collection day."""
@@ -65,13 +71,15 @@ class BccApiData:
 
     def extra_bin_text(self) -> str | None:
         """Compute the text describing the next extra bin (Green/Yellow)."""
-        return ('Yellow/Recycling' if self.recycling_week else
+        return (None if self.recycling_week is None else
+                'Yellow/Recycling' if self.recycling_week else
                 'Green/Garden Waste' if self.has_green_bin else None)
 
     def is_recycling_week(self) -> bool:
         """Compute whether the next collection includes the recycling bin."""
-        return self.recycling_week
+        return (False if self.recycling_week is None else self.recycling_week)
 
     def is_green_waste_week(self) -> bool:
         """Compute whether the next collection includes the green waste bin."""
-        return self.has_green_bin and not self.recycling_week
+        return (False if self.recycling_week is None else
+                self.has_green_bin and not self.recycling_week)
