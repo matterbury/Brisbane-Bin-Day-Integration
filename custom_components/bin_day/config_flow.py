@@ -70,7 +70,7 @@ OPTIONS_SCHEMA = vol.Schema(
             CONF_ALERT_HOURS,
             default=DEFAULT_ALERT_HOURS
         ): cv.positive_int,
-        vol.Required(CONF_PROPERTY_NUMBER): vol.All(cv.positive_int, vol.Range(min=1)),
+        vol.Required(CONF_PROPERTY_NUMBER): cv.positive_int,
         vol.Optional(
             CONF_HAS_GREEN_BIN,
             default=False

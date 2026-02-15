@@ -106,6 +106,10 @@ class BccApiDataUpdateCoordinator(DataUpdateCoordinator[BccApiData]):
     def _get_weeks_data(self, base_url, weeks_table, api_data):
         """Fetch the data that the weeks table provides.""" 
 
+        # Handle the getting of the days data failing for any reason.
+        if api_data.collection_day is None:
+            return
+
         week_start_date = (
             api_data.next_collection_date() -
             timedelta(days=api_data.collection_week_day())
