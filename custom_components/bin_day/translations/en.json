@@ -5,7 +5,7 @@
         "description": "Configure the BCC API for Waste Collection.",
         "data": {
           "service_name": "Name of the service in Home Assistant",
-          "base_url": "The URL to the BCC API, including '{dataset}' and '{query}' parameters",
+          "base_url": "The URL to the BCC API, including 'dataset' and 'query' parameters",
           "days_table": "Name of the collection days dataset",
           "weeks_table": "Name of the collection weeks dataset",
           "polling_interval_hours": "How frequently (in hours) to poll the BCC API",
@@ -24,7 +24,7 @@
         "description": "Configure the BCC API for Waste Collection.",
         "data": {
           "service_name": "Name of the service in Home Assistant",
-          "base_url": "The URL to the BCC API, including '{dataset}' and '{query}' parameters",
+          "base_url": "The URL to the BCC API, including 'dataset' and 'query' parameters",
           "days_table": "Name of the collection days dataset",
           "weeks_table": "Name of the collection weeks dataset",
           "polling_interval_hours": "How frequently (in hours) to poll the BCC API",
