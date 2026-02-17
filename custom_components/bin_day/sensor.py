@@ -145,6 +145,8 @@ async def async_setup_entry(
         for entity_description in SENSORS
     )
 
+    await coordinator.async_config_entry_first_refresh()
+
 
 class BinDaySensorEntity(CoordinatorEntity[BccApiDataUpdateCoordinator], SensorEntity):
     """Defines a bin day sensor."""
