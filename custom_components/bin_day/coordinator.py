@@ -45,8 +45,7 @@ class BccApiDataUpdateCoordinator(DataUpdateCoordinator[BccApiData]):
             _LOGGER,
             name=DOMAIN,
             config_entry=config_entry,
-            update_interval=timedelta(hours=update_interval),
-            always_update=False
+            update_interval=timedelta(hours=update_interval)
         )
 
     async def _async_update_data(self) -> BccApiData:
